@@ -19,7 +19,6 @@
  *
  * Source for this application is maintained at https://github.com/WebGoat/WebGoat, a repository for free software projects.
  */
-
 package org.owasp.webgoat.lessons.sqlinjection.introduction;
 
 import java.sql.*;
@@ -59,12 +58,11 @@ public class SqlInjectionLesson5a extends AssignmentEndpoint {
   protected AttackResult injectableQuery(String accountName) {
     String query = "";
     try (Connection connection = dataSource.getConnection()) {
-      query =
-          "SELECT * FROM user_data WHERE first_name = 'John' and last_name = '" + accountName + "'";
-      try (Statement statement =
-          connection.createStatement(
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
-        ResultSet results = statement.executeQuery(query);
+      query = "SELECT * FROM user_data WHERE first_name = 'John' and last_name = ?";
+      try (PreparedStatement statement = connection.prepareStatement(
+              query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
+        statement.setString(1, accountName);
+        ResultSet results = statement.executeQuery();
 
         if ((results != null) && (results.first())) {
           ResultSetMetaData resultsMetaData = results.getMetaData();
@@ -73,29 +71,31 @@ public class SqlInjectionLesson5a extends AssignmentEndpoint {
           output.append(writeTable(results, resultsMetaData));
           results.last();
 
-          // If they get back more than one user they succeeded
           if (results.getRow() >= 6) {
             return success(this)
                 .feedback("sql-injection.5a.success")
-                .output("Your query was: " + query + EXPLANATION)
+                .output("Your query was executed safely using a prepared statement." + EXPLANATION)
                 .feedbackArgs(output.toString())
                 .build();
           } else {
-            return failed(this).output(output.toString() + "<br> Your query was: " + query).build();
+            return failed(this)
+                .output(output.toString() + "<br> Your query was executed safely using a prepared statement.")
+                .build();
           }
         } else {
           return failed(this)
               .feedback("sql-injection.5a.no.results")
-              .output("Your query was: " + query)
+              .output("Your query was executed safely using a prepared statement.")
               .build();
         }
       } catch (SQLException sqle) {
-        return failed(this).output(sqle.getMessage() + "<br> Your query was: " + query).build();
+        return failed(this)
+            .output(sqle.getMessage() + "<br> Your query was: " + query)
+            .build();
       }
     } catch (Exception e) {
       return failed(this)
-          .output(
-              this.getClass().getName() + " : " + e.getMessage() + "<br> Your query was: " + query)
+          .output(this.getClass().getName() + " : " + e.getMessage() + "<br> Your query was: " + query)
           .build();
     }
   }
@@ -117,12 +117,10 @@ public class SqlInjectionLesson5a extends AssignmentEndpoint {
       results.beforeFirst();
 
       while (results.next()) {
-
         for (int i = 1; i < (numColumns + 1); i++) {
           t.append(results.getString(i));
           t.append(", ");
         }
-
         t.append("<br />");
       }
 
@@ -131,6 +129,6 @@ public class SqlInjectionLesson5a extends AssignmentEndpoint {
     }
 
     t.append("</p>");
-    return (t.toString());
+    return t.toString();
   }
 }
